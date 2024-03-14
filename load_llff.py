@@ -64,6 +64,12 @@ def _load_data(basedir, factor=None, width=None, height=None, load_imgs=True):
     poses_arr = np.load(os.path.join(basedir, 'poses_bounds.npy'))
     poses = poses_arr[:, :-2].reshape([-1, 3, 5]).transpose([1,2,0])
     bds = poses_arr[:, -2:].transpose([1,0])
+
+    print('poses_arr: ', poses_arr.shape)
+    print('poses: ', poses.shape)
+    print('bds: ', bds.shape)
+
+    exit(1)
     
     img0 = [os.path.join(basedir, 'images', f) for f in sorted(os.listdir(os.path.join(basedir, 'images'))) \
             if f.endswith('JPG') or f.endswith('jpg') or f.endswith('png')][0]
@@ -107,7 +113,8 @@ def _load_data(basedir, factor=None, width=None, height=None, load_imgs=True):
     
     def imread(f):
         if f.endswith('png'):
-            return imageio.imread(f, ignoregamma=True)
+            # return imageio.imread(f, ignoregamma=True)
+            return imageio.imread(f, apply_gamma=False) # issue: https://github.com/bmild/nerf/issues/190
         else:
             return imageio.imread(f)
         

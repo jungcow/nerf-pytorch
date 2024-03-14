@@ -4,10 +4,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
+device = torch.device("mps")
 
 # Misc
-img2mse = lambda x, y : torch.mean((x - y) ** 2)
-mse2psnr = lambda x : -10. * torch.log(x) / torch.log(torch.Tensor([10.]))
+img2mse = lambda x, y : torch.mean((x - y) ** 2).to(device)
+mse2psnr = lambda x : -10. * torch.log(x).to(device) / torch.log(torch.Tensor([10.])).to(device)
 to8b = lambda x : (255*np.clip(x,0,1)).astype(np.uint8)
 
 
@@ -29,9 +30,9 @@ class Embedder:
         N_freqs = self.kwargs['num_freqs']
         
         if self.kwargs['log_sampling']:
-            freq_bands = 2.**torch.linspace(0., max_freq, steps=N_freqs)
+            freq_bands = 2.**torch.linspace(0., max_freq, steps=N_freqs).to(device)
         else:
-            freq_bands = torch.linspace(2.**0., 2.**max_freq, steps=N_freqs)
+            freq_bands = torch.linspace(2.**0., 2.**max_freq, steps=N_freqs).to(device)
             
         for freq in freq_bands:
             for p_fn in self.kwargs['periodic_fns']:
@@ -42,7 +43,7 @@ class Embedder:
         self.out_dim = out_dim
         
     def embed(self, inputs):
-        return torch.cat([fn(inputs) for fn in self.embed_fns], -1)
+        return torch.cat([fn(inputs) for fn in self.embed_fns], -1).to(device)
 
 
 def get_embedder(multires, i=0):
@@ -100,19 +101,19 @@ class NeRF(nn.Module):
             h = self.pts_linears[i](h)
             h = F.relu(h)
             if i in self.skips:
-                h = torch.cat([input_pts, h], -1)
+                h = torch.cat([input_pts, h], -1).to(device)
 
         if self.use_viewdirs:
             alpha = self.alpha_linear(h)
             feature = self.feature_linear(h)
-            h = torch.cat([feature, input_views], -1)
+            h = torch.cat([feature, input_views], -1).to(device)
         
             for i, l in enumerate(self.views_linears):
                 h = self.views_linears[i](h)
                 h = F.relu(h)
 
             rgb = self.rgb_linear(h)
-            outputs = torch.cat([rgb, alpha], -1)
+            outputs = torch.cat([rgb, alpha], -1).to(device)
         else:
             outputs = self.output_linear(h)
 
@@ -124,39 +125,39 @@ class NeRF(nn.Module):
         # Load pts_linears
         for i in range(self.D):
             idx_pts_linears = 2 * i
-            self.pts_linears[i].weight.data = torch.from_numpy(np.transpose(weights[idx_pts_linears]))    
-            self.pts_linears[i].bias.data = torch.from_numpy(np.transpose(weights[idx_pts_linears+1]))
+            self.pts_linears[i].weight.data = torch.from_numpy(np.transpose(weights[idx_pts_linears])).to(device)  
+            self.pts_linears[i].bias.data = torch.from_numpy(np.transpose(weights[idx_pts_linears+1])).to(device)
         
         # Load feature_linear
         idx_feature_linear = 2 * self.D
-        self.feature_linear.weight.data = torch.from_numpy(np.transpose(weights[idx_feature_linear]))
-        self.feature_linear.bias.data = torch.from_numpy(np.transpose(weights[idx_feature_linear+1]))
+        self.feature_linear.weight.data = torch.from_numpy(np.transpose(weights[idx_feature_linear])).to(device)
+        self.feature_linear.bias.data = torch.from_numpy(np.transpose(weights[idx_feature_linear+1])).to(device)
 
         # Load views_linears
         idx_views_linears = 2 * self.D + 2
-        self.views_linears[0].weight.data = torch.from_numpy(np.transpose(weights[idx_views_linears]))
-        self.views_linears[0].bias.data = torch.from_numpy(np.transpose(weights[idx_views_linears+1]))
+        self.views_linears[0].weight.data = torch.from_numpy(np.transpose(weights[idx_views_linears])).to(device)
+        self.views_linears[0].bias.data = torch.from_numpy(np.transpose(weights[idx_views_linears+1])).to(device)
 
         # Load rgb_linear
         idx_rbg_linear = 2 * self.D + 4
-        self.rgb_linear.weight.data = torch.from_numpy(np.transpose(weights[idx_rbg_linear]))
-        self.rgb_linear.bias.data = torch.from_numpy(np.transpose(weights[idx_rbg_linear+1]))
+        self.rgb_linear.weight.data = torch.from_numpy(np.transpose(weights[idx_rbg_linear])).to(device)
+        self.rgb_linear.bias.data = torch.from_numpy(np.transpose(weights[idx_rbg_linear+1])).to(device)
 
         # Load alpha_linear
         idx_alpha_linear = 2 * self.D + 6
-        self.alpha_linear.weight.data = torch.from_numpy(np.transpose(weights[idx_alpha_linear]))
-        self.alpha_linear.bias.data = torch.from_numpy(np.transpose(weights[idx_alpha_linear+1]))
+        self.alpha_linear.weight.data = torch.from_numpy(np.transpose(weights[idx_alpha_linear])).to(device)
+        self.alpha_linear.bias.data = torch.from_numpy(np.transpose(weights[idx_alpha_linear+1])).to(device)
 
 
 
 # Ray helpers
 def get_rays(H, W, K, c2w):
-    i, j = torch.meshgrid(torch.linspace(0, W-1, W), torch.linspace(0, H-1, H))  # pytorch's meshgrid has indexing='ij'
+    i, j = torch.meshgrid(torch.linspace(0, W-1, W).to(device), torch.linspace(0, H-1, H))  # pytorch's meshgrid has indexing='ij'
     i = i.t()
     j = j.t()
-    dirs = torch.stack([(i-K[0][2])/K[0][0], -(j-K[1][2])/K[1][1], -torch.ones_like(i)], -1)
+    dirs = torch.stack([(i-K[0][2])/K[0][0], -(j-K[1][2])/K[1][1], -torch.ones_like(i).to(device)], -1).to(device)
     # Rotate ray directions from camera frame to the world frame
-    rays_d = torch.sum(dirs[..., np.newaxis, :] * c2w[:3,:3], -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
+    rays_d = torch.sum(dirs[..., np.newaxis, :] * c2w[:3,:3], -1).to(device)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
     # Translate camera frame's origin to the world frame. It is the origin of all rays.
     rays_o = c2w[:3,-1].expand(rays_d.shape)
     return rays_o, rays_d

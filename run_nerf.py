@@ -17,9 +17,11 @@ from load_llff import load_llff_data
 from load_deepvoxels import load_dv_data
 from load_blender import load_blender_data
 from load_LINEMOD import load_LINEMOD_data
+# from load_transforms import load_transforms_data
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("mps")
 np.random.seed(0)
 DEBUG = False
 
@@ -275,7 +277,8 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
     raw2alpha = lambda raw, dists, act_fn=F.relu: 1.-torch.exp(-act_fn(raw)*dists)
 
     dists = z_vals[...,1:] - z_vals[...,:-1]
-    dists = torch.cat([dists, torch.Tensor([1e10]).expand(dists[...,:1].shape)], -1)  # [N_rays, N_samples]
+    dists = dists.clone().detach().to(device)
+    dists = torch.cat([dists, torch.Tensor([1e10]).expand(dists[...,:1].shape).to(device)], torch.tensor(-1).to(device)).to(device)  # [N_rays, N_samples]
 
     dists = dists * torch.norm(rays_d[...,None,:], dim=-1)
 
@@ -603,6 +606,9 @@ def train():
         near = hemi_R-1.
         far = hemi_R+1.
 
+    # elif args.dataset_type == 'transforms':
+    #     # images, poses, render_poses, hwf
+
     else:
         print('Unknown dataset type', args.dataset_type, 'exiting')
         return
@@ -873,6 +879,8 @@ def train():
 
 
 if __name__=='__main__':
-    torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    # torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    torch.set_default_dtype(torch.float32)
+    torch.set_default_device('mps')
 
     train()
