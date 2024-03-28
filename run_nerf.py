@@ -20,8 +20,8 @@ from load_LINEMOD import load_LINEMOD_data
 # from load_transforms import load_transforms_data
 
 
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = torch.device("mps")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("mps")
 np.random.seed(0)
 DEBUG = False
 
@@ -533,7 +533,6 @@ def config_parser():
 
     return parser
 
-
 def train():
 
     parser = config_parser()
@@ -605,9 +604,6 @@ def train():
         hemi_R = np.mean(np.linalg.norm(poses[:,:3,-1], axis=-1))
         near = hemi_R-1.
         far = hemi_R+1.
-
-    # elif args.dataset_type == 'transforms':
-    #     # images, poses, render_poses, hwf
 
     else:
         print('Unknown dataset type', args.dataset_type, 'exiting')
@@ -704,7 +700,8 @@ def train():
         rays_rgb = torch.Tensor(rays_rgb).to(device)
 
 
-    N_iters = 200000 + 1
+    # N_iters = 200000 + 1
+    N_iters = 150000 + 1
     print('Begin')
     print('TRAIN views are', i_train)
     print('TEST views are', i_test)
@@ -879,8 +876,8 @@ def train():
 
 
 if __name__=='__main__':
-    # torch.set_default_tensor_type('torch.cuda.FloatTensor')
-    torch.set_default_dtype(torch.float32)
-    torch.set_default_device('mps')
+    torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    #torch.set_default_dtype(torch.float32)
+    #torch.set_default_device('mps')
 
     train()

@@ -60,8 +60,9 @@ def _minify(basedir, factors=[], resolutions=[]):
         
         
 def _load_data(basedir, factor=None, width=None, height=None, load_imgs=True):
-    
+    limit_count=100 ################# jungcow added
     poses_arr = np.load(os.path.join(basedir, 'poses_bounds.npy'))
+    poses_arr = poses_arr[:limit_count] ################# jungcow added
     poses = poses_arr[:, :-2].reshape([-1, 3, 5]).transpose([1,2,0])
     bds = poses_arr[:, -2:].transpose([1,0])
 
@@ -69,7 +70,7 @@ def _load_data(basedir, factor=None, width=None, height=None, load_imgs=True):
     print('poses: ', poses.shape)
     print('bds: ', bds.shape)
 
-    exit(1)
+    # exit(1)
     
     img0 = [os.path.join(basedir, 'images', f) for f in sorted(os.listdir(os.path.join(basedir, 'images'))) \
             if f.endswith('JPG') or f.endswith('jpg') or f.endswith('png')][0]
@@ -100,6 +101,9 @@ def _load_data(basedir, factor=None, width=None, height=None, load_imgs=True):
         return
     
     imgfiles = [os.path.join(imgdir, f) for f in sorted(os.listdir(imgdir)) if f.endswith('JPG') or f.endswith('jpg') or f.endswith('png')]
+
+    imgfiles = imgfiles[:limit_count] ################# jungcow added
+
     if poses.shape[-1] != len(imgfiles):
         print( 'Mismatch between imgs {} and poses {} !!!!'.format(len(imgfiles), poses.shape[-1]) )
         return
