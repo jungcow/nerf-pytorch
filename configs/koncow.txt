@@ -1,6 +1,6 @@
 expname = koncow_test
-basedir = ./logs
-datadir = ./data/nerf_llff_data/koncow
+basedir = ../../volumes/results/
+datadir = ../../volumes/datasets/llff/koncow
 dataset_type = llff
 
 factor = 8
@@ -12,4 +12,3 @@ N_importance = 64
 
 use_viewdirs = True
 raw_noise_std = 1e0
-
